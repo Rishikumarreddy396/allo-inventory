@@ -40,8 +40,6 @@ export async function POST(request: NextRequest) {
       const stock = await tx.warehouseStock.findFirst({
         where: { productId, warehouseId },
       });
-      console.log("Stock lookup result:", JSON.stringify(stock));
-      console.log("Looking for productId:", productId, "warehouseId:", warehouseId);
 
       if (!stock) {
         throw new Error("STOCK_NOT_FOUND");
