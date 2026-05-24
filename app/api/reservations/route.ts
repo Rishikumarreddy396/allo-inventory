@@ -30,42 +30,50 @@ export async function POST(request: NextRequest) {
 
     const { productId, warehouseId, units } = parsed.data;
 
-    // --- Core reservation logic with row-level locking ---
+    // --- Core reservation logic with conditional update ---
+    // Instead of SELECT FOR UPDATE (which has issues with Neon's PgBouncer
+    // connection pooling), we use a conditional updateMany that atomically
+    // checks and increments in a single statement. If two requests race,
+    // only one will satisfy the WHERE condition — the other gets count 0.
     const reservation = await prisma.$transaction(async (tx) => {
-      // Lock this specific stock row so no other request can read/write it
-      // until this transaction commits. This is the race condition fix.
-      const stock = await tx.$queryRaw<Array<{
-        id: string;
-        totalUnits: number;
-        reservedUnits: number;
-      }>>`
-        SELECT id, "totalUnits", "reservedUnits"
-        FROM "WarehouseStock"
-        WHERE "productId" = ${productId}
-          AND "warehouseId" = ${warehouseId}
-        FOR UPDATE
-      `;
+      // First verify stock row exists
+      const stock = await tx.warehouseStock.findUnique({
+        where: {
+          productId_warehouseId: { productId, warehouseId },
+        },
+      });
 
-      if (stock.length === 0) {
+      if (!stock) {
         throw new Error("STOCK_NOT_FOUND");
       }
 
-      const { totalUnits, reservedUnits } = stock[0];
-      const availableUnits = totalUnits - reservedUnits;
+      const availableUnits = stock.totalUnits - stock.reservedUnits;
 
       if (availableUnits < units) {
         throw new Error("INSUFFICIENT_STOCK");
       }
 
-      // Increment reservedUnits
-      await tx.warehouseStock.update({
+      // Atomic conditional update — only succeeds if stock is still available
+      // at the moment of the UPDATE. This is the race condition fix.
+      const updated = await tx.warehouseStock.updateMany({
         where: {
-          productId_warehouseId: { productId, warehouseId },
+          productId,
+          warehouseId,
+          // Re-check at update time: ensures no other request sneaked in
+          reservedUnits: {
+            lte: stock.totalUnits - units,
+          },
         },
         data: {
           reservedUnits: { increment: units },
         },
       });
+
+      // If count is 0, another request grabbed the last unit between
+      // our read and our write
+      if (updated.count === 0) {
+        throw new Error("INSUFFICIENT_STOCK");
+      }
 
       // Create the reservation
       const expiresAt = new Date(
@@ -86,9 +94,6 @@ export async function POST(request: NextRequest) {
           warehouse: true,
         },
       });
-    }, {
-      maxWait: 10000,
-      timeout: 20000,
     });
 
     const responseBody = {

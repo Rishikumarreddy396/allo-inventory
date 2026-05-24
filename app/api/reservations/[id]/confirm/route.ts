@@ -4,7 +4,7 @@ import { getIdempotentResponse, saveIdempotentResponse } from "@/lib/idempotency
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     // --- Idempotency check ---
@@ -17,32 +17,16 @@ export async function POST(
       }
     }
 
-    const resolvedParams = await params;
-    const { id } = resolvedParams;
+    const { id } = params;
 
     const result = await prisma.$transaction(async (tx) => {
-      // Lock the reservation row
-      const reservations = await tx.$queryRaw<
-        Array<{
-          id: string;
-          status: string;
-          expiresAt: string | Date;
-          units: number;
-          productId: string;
-          warehouseId: string;
-        }>
-      >`
-        SELECT id, status, "expiresAt", units, "productId", "warehouseId"
-        FROM "Reservation"
-        WHERE id = ${id}
-        FOR UPDATE
-      `;
+      const reservation = await tx.reservation.findUnique({
+        where: { id },
+      });
 
-      if (reservations.length === 0) {
+      if (!reservation) {
         throw new Error("NOT_FOUND");
       }
-
-      const reservation = reservations[0];
 
       if (reservation.status === "CONFIRMED") {
         throw new Error("ALREADY_CONFIRMED");
@@ -54,7 +38,7 @@ export async function POST(
 
       // Check expiry
       if (new Date() > new Date(reservation.expiresAt)) {
-        // Auto-release on expired confirm attempt
+        // Auto-release
         await tx.reservation.update({
           where: { id },
           data: { status: "RELEASED" },
@@ -73,7 +57,7 @@ export async function POST(
         throw new Error("EXPIRED");
       }
 
-      // Confirm — decrement totalUnits permanently, clear the reservation hold
+      // Confirm — permanently decrement totalUnits and clear the hold
       await tx.warehouseStock.update({
         where: {
           productId_warehouseId: {
@@ -92,9 +76,6 @@ export async function POST(
         data: { status: "CONFIRMED" },
         include: { product: true, warehouse: true },
       });
-    }, {
-      maxWait: 10000,
-      timeout: 20000,
     });
 
     const responseBody = {
