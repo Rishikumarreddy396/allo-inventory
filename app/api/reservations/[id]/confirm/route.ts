@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getIdempotentResponse, saveIdempotentResponse } from "@/lib/idempotency";
+import { revalidatePath } from "next/cache";
 
 export async function POST(
   request: NextRequest,
@@ -92,6 +93,7 @@ export async function POST(
       await saveIdempotentResponse(`confirm:${idempotencyKey}`, 200, responseBody);
     }
 
+    revalidatePath("/");
     return NextResponse.json(responseBody);
 
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function POST(
   request: NextRequest,
@@ -63,6 +64,7 @@ export async function POST(
       timeout: 20000,
     });
 
+    revalidatePath("/");
     return NextResponse.json({
       id: result!.id,
       productName: result!.product.name,

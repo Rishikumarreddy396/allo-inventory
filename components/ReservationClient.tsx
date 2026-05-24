@@ -108,7 +108,7 @@ export default function ReservationClient({
     <div className="max-w-lg mx-auto">
       <div className="mb-6">
         <button
-          onClick={() => router.push("/")}
+          onClick={() => { router.push("/"); router.refresh(); }}
           className="text-sm text-blue-600 hover:underline flex items-center gap-1"
         >
           ← Back to products
@@ -226,7 +226,7 @@ export default function ReservationClient({
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => router.push("/")}
+              onClick={() => { router.push("/"); router.refresh(); }}
             >
               Back to products
             </Button>
