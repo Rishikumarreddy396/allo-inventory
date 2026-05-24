@@ -59,6 +59,9 @@ export async function POST(
         data: { status: "RELEASED" },
         include: { product: true, warehouse: true },
       });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     return NextResponse.json({

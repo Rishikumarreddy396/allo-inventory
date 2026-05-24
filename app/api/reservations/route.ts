@@ -86,6 +86,9 @@ export async function POST(request: NextRequest) {
           warehouse: true,
         },
       });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     const responseBody = {

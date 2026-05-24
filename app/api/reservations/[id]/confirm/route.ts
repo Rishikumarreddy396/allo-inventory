@@ -92,6 +92,9 @@ export async function POST(
         data: { status: "CONFIRMED" },
         include: { product: true, warehouse: true },
       });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     const responseBody = {
