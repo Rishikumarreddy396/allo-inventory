@@ -17,7 +17,7 @@ A Next.js inventory and order-fulfillment platform with race-condition-safe rese
 
 1. Clone the repository and install dependencies:
 ```bash
-   git clone https://github.com/your-username/allo-inventory
+   git clone https://github.com/Rishikumarreddy396/allo-inventory#
    cd allo-inventory
    npm install
 ```
