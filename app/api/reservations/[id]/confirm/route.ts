@@ -4,7 +4,7 @@ import { getIdempotentResponse, saveIdempotentResponse } from "@/lib/idempotency
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // --- Idempotency check ---
@@ -17,7 +17,8 @@ export async function POST(
       }
     }
 
-    const { id } = params;
+    const resolvedParams = await params;
+    const { id } = resolvedParams;
 
     const result = await prisma.$transaction(async (tx) => {
       const reservation = await tx.reservation.findUnique({

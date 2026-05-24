@@ -6,8 +6,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params;
-    const { id } = resolvedParams;
+    const { id } = await params;
 
     const result = await prisma.$transaction(async (tx) => {
       const reservations = await tx.$queryRaw<
