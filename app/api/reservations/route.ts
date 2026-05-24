@@ -37,11 +37,11 @@ export async function POST(request: NextRequest) {
     // only one will satisfy the WHERE condition — the other gets count 0.
     const reservation = await prisma.$transaction(async (tx) => {
       // First verify stock row exists
-      const stock = await tx.warehouseStock.findUnique({
-        where: {
-          productId_warehouseId: { productId, warehouseId },
-        },
+      const stock = await tx.warehouseStock.findFirst({
+        where: { productId, warehouseId },
       });
+      console.log("Stock lookup result:", JSON.stringify(stock));
+      console.log("Looking for productId:", productId, "warehouseId:", warehouseId);
 
       if (!stock) {
         throw new Error("STOCK_NOT_FOUND");
